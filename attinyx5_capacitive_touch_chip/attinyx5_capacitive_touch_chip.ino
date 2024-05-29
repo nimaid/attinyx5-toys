@@ -4,7 +4,7 @@
  *
  * Found on Olena Kokhan's blog: https://kokhana89.github.io/Fablab/touchsensor.html
  * 
- * Futher adapted by Ella Jameson to make the ATtinyX5 a general purpose cap sense chip.
+ * Futher adapted by Ella Jameson to make the ATtinyX5 a general purpose cap touch chip.
  * More info on the method: https://github.com/wagiminator/ATtiny13-TinyTouchLight
  *
  * Requires the "CapacitiveSensor" library by Paul Bagder to be installed.
