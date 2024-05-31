@@ -15,16 +15,16 @@
  * Clock Setting: Internal 1 MHz
  * 
  * Schematic:
- *          ┌───U───┐
- *     ─────┤ ○     ├───── Vcc
- *     ─3(D)┤       ├2(D)─ Yeah
- *     ─4(D)┤       ├1(D)───10KΩ─┬─ Out
- * Gnd ─────┤       ├0(D)─ Woo   ╪ 0.1uF
- *          └───────┘            ⏚
+ *        ┌───U───┐
+ *      ──┤ ○     ├───── Vcc
+ * Yeah ─3┤       ├2─
+ *  Woo ─4┤       ├1───10KΩ─┬─ Out
+ *  Gnd ──┤       ├0─       ╪ 0.1uF
+ *        └───────┘         ⏚
  * For line level output, add this to the above schematic:
  *         10uF
  * Out ───┬─┤(── Line Out
- *    1KΩ ⌇
+ *    1KΩ ⌇ 
  *        ⏚
  * 
  * Pin Functions:
@@ -41,17 +41,25 @@
  * Export your audio as raw mono unsigned 8-bit 4000 Hz
  */
 
+// Define this to make a Yes/No button instead of a Yeah/Woo one
+//#define YESNO_OVERRIDE
+
 
 #include <avr/interrupt.h>
 #include <avr/io.h>
 #include <avr/pgmspace.h>
 
-#include "samples.h"  // The samples to use
+// The samples to use
+#ifdef YESNO_OVERRIDE
+#include "yes_no.h"  
+#else
+#include "yeah_woo.h"
+#endif
 
 // Analog pins are hard-coded to be read using optimized code below
 // Output pin is also hard-coded for performance
-#define YEAH_PIN 2
-#define WOO_PIN 0
+#define YEAH_PIN 3
+#define WOO_PIN 4
 
 #define YEAH_SAMPLE 0
 #define WOO_SAMPLE 1
@@ -78,22 +86,18 @@ volatile uint8_t RingCount=0;
 const uint8_t *drum[] =
 {
   drum0,
-  drum1,
-  drum2,
-  drum3
+  drum1
 };
 
 // sizeof() can't work with the above array of pointers, so here is a helper array
 const uint16_t sizeof_drum[] =
 {
   sizeof(drum0),
-  sizeof(drum1),
-  sizeof(drum2),
-  sizeof(drum3)
+  sizeof(drum1)
 };
 
-uint16_t samplecnt[4];
-uint16_t samplepnt[4];
+uint16_t samplecnt[2];
+uint16_t samplepnt[2];
 
 
 void append_ring_buffer(uint8_t sample) {
@@ -106,7 +110,7 @@ void append_ring_buffer(uint8_t sample) {
 
 void update_ring_buffer() {
   int16_t total=0;
-  for(int i=0; i<4; i++) {
+  for(int i=0; i<2; i++) {
     if (samplecnt[i]) {
       total+=(pgm_read_byte_near(drum[i] + samplepnt[i]++)-128);
       samplecnt[i]--;
