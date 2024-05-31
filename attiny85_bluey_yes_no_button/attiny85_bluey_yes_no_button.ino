@@ -26,7 +26,8 @@
  * Out ───┬─┤(── Line Out
  *  2.7KΩ ⌇ 
  *        ⏚
- * The above resistor may need to be made smaller if it's still too loud
+ * The above resistor may need to be made smaller to make it quieter
+ * It can also be made larger or even ommitted to make it louder
  * 
  * Pin Functions:
  * • Yes / No:
@@ -37,10 +38,13 @@
  *   ◦ A high-speed PWM "analog" audio output.
  *   ◦ True analog output is realized via the RC lowpass filter.
  *
+ * ~~~~~~ NOTE: ~~~~~~
+ * The following section will eventually be replaced with a special Python program.
+ * ~~~~~~~~~~~~~~~~~~~
  * Make new samples: http://synthworks.eu/attiny85-drum-creator/
- * Export your audio as raw mono unsigned 8-bit, around 7000 Hz
- * Use the highest sample rate possible while still fitting in memory
- * If you use a different sample rate, tweak the PITCH and ISR_SKIP values
+ * Export your audio as raw mono unsigned 8-bit, around 7000 Hz.
+ * Use the highest sample rate possible while still fitting it all in memory.
+ * If you use a different sample rate, tweak the PITCH and ISR_SKIP values.
  */
 
 // Tweak this between 0 and 1023 to get the correct pitch for your samples
