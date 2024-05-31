@@ -1,4 +1,4 @@
-/* Tiny YEAH! WOO! Machine
+/* ATtiny85 Yes/No Button (from Bluey)
  * Author: Ella Jameson
  * 
  * This program is free software: you can redistribute it and/or modify 
@@ -12,15 +12,15 @@
  * 
  * 
  * 
- * Clock Setting: Internal 1 MHz
+ * Clock Setting: Internal 8 MHz
  * 
  * Schematic:
- *        ┌───U───┐
- *      ──┤ ○     ├───── Vcc
- * Yeah ─3┤       ├2─
- *  Woo ─4┤       ├1───10KΩ─┬─ Out
- *  Gnd ──┤       ├0─       ╪ 0.1uF
- *        └───────┘         ⏚
+ *       ┌───U───┐
+ *     ──┤ ○     ├── Vcc
+ * Yes ─3┤       ├2─  10KΩ
+ *  No ─4┤       ├1───~~~~─┬─ Out
+ * Gnd ──┤       ├0─       ╪ 0.1uF
+ *       └───────┘         ⏚
  * For line level output, add this to the above schematic:
  *         10uF
  * Out ───┬─┤(── Line Out
@@ -28,44 +28,41 @@
  *        ⏚
  * 
  * Pin Functions:
- * • Pitch:
- *   ◦ An analog input that varies the sample playback speed for the
- *     entire chip.
- *   ◦ At 5v, the chip will play back at full speed. Lower voltages will
- *     result in slower playback, and therefore a lower overall pitch.
+ * • Yes / No:
+ *   ◦ A digital input that triggers the respective sample.
+ *   ◦ Uses internal pullup resistors, so you only have to connect
+ *     a button between the pin and ground.
  * • Out:
  *   ◦ A high-speed PWM "analog" audio output.
  *   ◦ True analog output is realized via the RC lowpass filter.
  *
- * Make new drum kits: http://synthworks.eu/attiny85-drum-creator/
- * Export your audio as raw mono unsigned 8-bit 4000 Hz
+ * Make new samples: http://synthworks.eu/attiny85-drum-creator/
+ * Export your audio as raw mono unsigned 8-bit, around 7000 Hz
+ * Use the highest sample rate possible while still fitting in memory
+ * If you use a different sample rate, tweak the PITCH and ISR_SKIP values
  */
 
-// Define this to make a Yes/No button instead of a Yeah/Woo one
-//#define YESNO_OVERRIDE
+// Tweak this between 0 and 1023 to get the correct pitch for your samples
+// Higher is faster/higher pitched
+#define PITCH 825
+// If you need the pitch even lower, this is a coarse adjustment
+// Higher is slower/lower pitched
+#define ISR_SKIP 3
+
 
 
 #include <avr/interrupt.h>
 #include <avr/io.h>
 #include <avr/pgmspace.h>
 
-// The samples to use
-#ifdef YESNO_OVERRIDE
-#include "yes_no.h"  
-#else
-#include "yeah_woo.h"
-#endif
+#include "samples.h"  // The sample audio data
 
-// Analog pins are hard-coded to be read using optimized code below
-// Output pin is also hard-coded for performance
-#define YEAH_PIN 3
-#define WOO_PIN 4
+// Output pin is hard-coded as 1 for performance
+#define A_PIN 3
+#define B_PIN 4
 
-#define YEAH_SAMPLE 0
-#define WOO_SAMPLE 1
-
-// Tweak this between 0 and 1023 to get the correct pitch for your voltage
-#define PITCH 925
+#define A_SAMPLE 0
+#define B_SAMPLE 1
 
 #ifndef cbi
 #define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
@@ -82,18 +79,18 @@ uint8_t RingRead=0;
 volatile uint8_t RingCount=0;
 //-----------------------------------------
 
-// An indexable array of the sample pointers in drums.h
-const uint8_t *drum[] =
+// An indexable array of the sample pointers in samples.h
+const uint8_t *sample[] =
 {
-  drum0,
-  drum1
+  sample0,
+  sample1
 };
 
 // sizeof() can't work with the above array of pointers, so here is a helper array
-const uint16_t sizeof_drum[] =
+const uint16_t sizeof_sample[] =
 {
-  sizeof(drum0),
-  sizeof(drum1)
+  sizeof(sample0),
+  sizeof(sample1)
 };
 
 uint16_t samplecnt[2];
@@ -112,7 +109,7 @@ void update_ring_buffer() {
   int16_t total=0;
   for(int i=0; i<2; i++) {
     if (samplecnt[i]) {
-      total+=(pgm_read_byte_near(drum[i] + samplepnt[i]++)-128);
+      total+=(pgm_read_byte_near(sample[i] + samplepnt[i]++)-128);
       samplecnt[i]--;
     }
   }
@@ -124,7 +121,7 @@ void update_ring_buffer() {
 
 void play_sample(uint8_t sample_num) {
   samplepnt[sample_num]=0;
-  samplecnt[sample_num]=sizeof_drum[sample_num];
+  samplecnt[sample_num]=sizeof_sample[sample_num];
 }
 
 
@@ -148,8 +145,8 @@ void setup() {
 
   pinMode(1, OUTPUT);  // Enable PWM output pin
 
-  pinMode(YEAH_PIN, INPUT_PULLUP);
-  pinMode(WOO_PIN, INPUT_PULLUP);
+  pinMode(A_PIN, INPUT_PULLUP);
+  pinMode(B_PIN, INPUT_PULLUP);
 
   //Set up Timer/Counter0 for 20kHz interrupt to output samples.
   TCCR0A = 3<<WGM00;             // Fast PWM
@@ -160,39 +157,46 @@ void setup() {
   set_playback_speed(PITCH);
 }
 
-bool yeah_trigger;
-bool woo_trigger;
+bool a_trigger;
+bool b_trigger;
 
 void loop() {
   if (RingCount<32) {  // If there is space in ringbuffer
     update_ring_buffer();
 
-    // Detect the YEAH! input
-    if (digitalRead(YEAH_PIN) != yeah_trigger) {  // Detect yeah_trigger state change
-      yeah_trigger = !yeah_trigger; // Toggle state
-      if (!yeah_trigger) {  // If on a falling edge, trigger the sample
-        play_sample(YEAH_SAMPLE);
+    // Detect the A input
+    if (digitalRead(A_PIN) != a_trigger) {  // Detect a_trigger state change
+      a_trigger = !a_trigger; // Toggle state
+      if (!a_trigger) {  // If on a falling edge, trigger the sample
+        play_sample(A_SAMPLE);
       }
     }
 
-    // Detect the WOO! input
-    if (digitalRead(WOO_PIN) != woo_trigger) {  // Detect woo_trigger state change
-      woo_trigger = !woo_trigger; // Toggle state
-      if (!woo_trigger) {  // If on a falling edge, trigger the sample
-        play_sample(WOO_SAMPLE);
+    // Detect the B input
+    if (digitalRead(B_PIN) != b_trigger) {  // Detect b_trigger state change
+      b_trigger = !b_trigger; // Toggle state
+      if (!b_trigger) {  // If on a falling edge, trigger the sample
+        play_sample(B_SAMPLE);
       }
     }
   }
 }
 
 
+uint8_t isr_run = 0;
+
 ISR(TIMER0_COMPA_vect) {
   //-------------------  Ringbuffer handler -------------------------
-    
-    if (RingCount) {                            // If entry in FIFO
-      OCR1A = Ringbuffer[(RingRead++)];         // Output 8-bit DAC
-      RingCount--;
-    }
+    if(isr_run == ISR_SKIP) {
+      if (RingCount) {                            // If entry in FIFO
+        OCR1A = Ringbuffer[(RingRead++)];         // Output 8-bit DAC
+        RingCount--;
+      }
 
+      isr_run = 0;
+    }
+    else {
+      isr_run++;
+    }
   //-----------------------------------------------------------------
 }
