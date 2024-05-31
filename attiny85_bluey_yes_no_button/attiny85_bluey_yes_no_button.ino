@@ -29,7 +29,7 @@
  * The above resistor may need to be made smaller to make it quieter
  * It can also be made larger or even ommitted to make it louder
  * 
- * Pin Functions:
+ * Schematic Key:
  * • Yes / No:
  *   ◦ A digital input that triggers the respective sample on the falling edge.
  *   ◦ Uses internal pullup resistors, so you only have to connect
