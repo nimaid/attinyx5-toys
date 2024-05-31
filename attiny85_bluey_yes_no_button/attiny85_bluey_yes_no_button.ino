@@ -24,8 +24,9 @@
  * For line level output, add this to the above schematic:
  *         10uF
  * Out ───┬─┤(── Line Out
- *    1KΩ ⌇ 
+ *  2.7KΩ ⌇ 
  *        ⏚
+ * The above resistor may need to be made smaller if it's still too loud
  * 
  * Pin Functions:
  * • Yes / No:
