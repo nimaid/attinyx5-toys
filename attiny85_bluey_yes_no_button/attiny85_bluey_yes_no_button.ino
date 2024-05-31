@@ -22,7 +22,7 @@
  * Gnd ──┤       ├0─       ╪ 0.1uF
  *       └───────┘         ⏚
  * For line level output, add this to the above schematic:
- *         10uF
+ *         100uF
  * Out ───┬─┤(── Line Out
  *  2.7KΩ ⌇ 
  *        ⏚
