@@ -18,7 +18,7 @@
  *       ┌───U───┐
  *     ──┤ ○     ├── Vcc
  * Yes ─3┤       ├2─  10KΩ
- *  No ─4┤       ├1───~~~~─┬─ Out
+ *  No ─4┤       ├1────~~──┬─ Out
  * Gnd ──┤       ├0─       ╪ 0.1uF
  *       └───────┘         ⏚
  * For line level output, add this to the above schematic:
