@@ -30,7 +30,7 @@
  * 
  * Pin Functions:
  * • Yes / No:
- *   ◦ A digital input that triggers the respective sample.
+ *   ◦ A digital input that triggers the respective sample on the falling edge.
  *   ◦ Uses internal pullup resistors, so you only have to connect
  *     a button between the pin and ground.
  * • Out:
@@ -45,7 +45,7 @@
 
 // Tweak this between 0 and 1023 to get the correct pitch for your samples
 // Higher is faster/higher pitched
-#define PITCH 825
+#define PITCH 850
 // If you need the pitch even lower, this is a coarse adjustment
 // Higher is slower/lower pitched
 #define ISR_SKIP 3
