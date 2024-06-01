@@ -46,6 +46,10 @@
  * Export your audio as raw mono unsigned 8-bit, around 7000 Hz.
  * Use the highest sample rate possible while still fitting it all in memory.
  * If you use a different sample rate, tweak the PITCH and ISR_SKIP values.
+ *
+ * ~~~~~~ Technical Notes ~~~~~~
+ * http://synthworks.eu/attiny85-drum-creator/
+ * https://www.gadgetronicx.com/attiny85-sleep-modes-tutorial/
  */
 
 
