@@ -1,4 +1,4 @@
-/* ATtiny85 Sound Machine
+/* ATtiny85 Sound Toy
  * Author: Ella Jameson
  * 
  * This program is free software: you can redistribute it and/or modify 
@@ -95,14 +95,14 @@ volatile uint8_t RingCount=0;
 //-----------------------------------------
 
 // An indexable array of the sample pointers in samples.h
-const uint8_t *sample[] =
+const uint8_t *sample[NUM_SAMPLES] =
 {
   sample0,
   sample1
 };
 
 // sizeof() can't work with the above array of pointers, so here is a helper array
-const uint16_t sizeof_sample[] =
+const uint16_t sizeof_sample[NUM_SAMPLES] =
 {
   sizeof(sample0),
   sizeof(sample1)
