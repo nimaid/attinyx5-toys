@@ -1,3 +1,4 @@
+// yes.wav
 const uint8_t sample0[] PROGMEM =
 {
   0x82, 0x7F, 0x7F, 0x7D, 
@@ -197,6 +198,7 @@ const uint8_t sample0[] PROGMEM =
 0x80
 };
 
+// no.wav
 const uint8_t sample1[] PROGMEM =
 {
   0x81, 0x81, 0x87, 0x81, 
