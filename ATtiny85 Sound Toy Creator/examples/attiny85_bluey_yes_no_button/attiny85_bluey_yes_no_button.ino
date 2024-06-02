@@ -52,6 +52,8 @@
  * ~~~~~~ Technical Notes ~~~~~~
  * http://synthworks.eu/attiny85-drum-creator/
  * https://www.gadgetronicx.com/attiny85-sleep-modes-tutorial/
+ * https://thewanderingengineer.com/2014/08/11/arduino-pin-change-interrupts/
+ * https://thewanderingengineer.com/2014/08/09/avr-arduino-default-isr-resetting-pin-change-interrupt-problem/
  */
 
 
@@ -74,8 +76,6 @@
 
 
 
-#define DEBUG_LED 2
-
 #include <avr/interrupt.h>
 #include <avr/io.h>
 #include <avr/pgmspace.h>
@@ -86,14 +86,17 @@
 // Which pins will trigger each sample, tied to hard-coded ISRs
 uint8_t trigger_pins[] = {3, 4};
 
-// Hacky way to measure time, used for the sleep mode timeout
-// millis() doen't work if I use Timer0 myself, so I had to roll my own solutuion
+// Hacky way to measure time, used for the sleep mode timeout and  the wakeup period
+// millis() doesn't work if I use Timer0 myself, so I had to roll my own solutuion
 // I'll be honest, I can't be bothered to do the math to get accurate time
 // This value gives something very *close* to milliseconds, but the clock runs a little slow
 #define ISR_SKIP_CLOCK 2<<4 // How many ISR cycles before the counter is incremented
-uint32_t clock = 0;  // This is effectively the "time" in "ISR_SKIP_CLOCKs", not milliseconds
+volatile uint32_t clock = 0;  // This is effectively the "time" in "ISR_SKIP_CLOCKs", not milliseconds
 
-#define SLEEP_TIMEOUT 5000 // Approximately 5 seconds
+#define SLEEP_TIMEOUT 5000 // How long to wait before sleeping
+#define WAKEUP_WINDOW 100 // How long to wait before playing samples after waking up
+
+bool sample_queue[NUM_SAMPLES] = {false};
 
 #ifndef cbi
 #define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
@@ -129,8 +132,11 @@ uint16_t samplepnt[NUM_SAMPLES];
 bool pin_state[NUM_SAMPLES] = {HIGH};
 uint32_t isr_run_sample = 0;
 uint32_t isr_run_clock = 0;
-uint32_t last_button_press_time = 0;
-bool still_waking_up = false;
+
+volatile uint32_t last_button_press_time = 0;
+volatile uint32_t last_wakeup_time = 0;
+volatile bool still_waking_up = false;
+
 uint8_t i;
 
 
@@ -162,34 +168,43 @@ void setup() {
   }
 
   disable_pin_interrupts();
-
-  pinMode(DEBUG_LED, OUTPUT);
-  digitalWrite(DEBUG_LED, HIGH);
 }
 
 void loop() {
-  if(RingCount < 32) {  // If there is space in ringbuffer
+  // If there is space in ringbuffer, update it
+  if(RingCount < 32) {
     update_ring_buffer();
-    
-    // Detect the trigger inputs
-    for(i=0; i<NUM_SAMPLES; i++) {
-      // Detect this pin state change
-      if (digitalRead(trigger_pins[i]) != pin_state[i]) {  
-        pin_state[i] = !pin_state[i]; // Toggle state
-        // If on a falling edge, trigger the sample
-        if (!pin_state[i]) {
-          last_button_press_time = clock;
+  }
 
-          // Need to "queue" sound to play after 200ms (ish) if we just woke up so the ADC can get going
-          // We need to handle queueing multiple samples during the "wakeup" period, and play them when the time elapses
-          // If the time has already elapsed, we just play the sound instantly and ignore the queue stuff
-          // On disable_sleep, I set still_waking_up, I can use that flag along with a timestamp to do 3 states
-          // - If still_waking_up and in the time window, set the sample bit in a queue array
-          // - If still_waking_up and out of the time window, play queue, clear queue, and reset still_waking_up
-          // - Else (not still_waking_up), just play instantly
+  // Detect the trigger inputs
+  for(i=0; i<NUM_SAMPLES; i++) {
+    // Detect this pin state change
+    if (digitalRead(trigger_pins[i]) != pin_state[i]) {  
+      pin_state[i] = !pin_state[i]; // Toggle state
+      // If on a falling edge, trigger the sample
+      if (!pin_state[i]) {
+        last_button_press_time = clock;
+
+        // If still waking up, queue instead of playing
+        if(still_waking_up) {
+          sample_queue[i] = true;
+        }
+        else {
           play_sample(i);
         }
       }
+    }
+  }
+
+  // If still_waking_up and out of the time window, play queue, clear queue, and reset still_waking_up
+  if(still_waking_up && (clock - last_wakeup_time >= WAKEUP_WINDOW)) {
+    still_waking_up = false;
+
+    for(i=0; i<NUM_SAMPLES; i++) {
+      if(sample_queue[i]) {
+        play_sample(i);
+      }
+        sample_queue[i] = false;
     }
   }
 
@@ -228,12 +243,9 @@ ISR(TIMER0_COMPA_vect) {
   //-----------------------------------------------------------------
 }
 
-// Wakeup handlers
-ISR(PCINT3_vector) {
-  disable_sleep();
-}
-ISR(PCINT4_vector) {
-  disable_sleep();
+// Wakeup handler
+ISR(PCINT0_vect) {  // Handles ALL pins on PORTB (on the ATtiny85, that's every pin!)
+  wake_up();
 }
 
 void append_ring_buffer(uint8_t sample) {
@@ -270,33 +282,44 @@ void set_playback_speed(uint16_t playback_speed) {
 
 void enable_pin_iterrupts() {
   GIMSK |= (1 << PCIE);  // Enable extrnal interrupt on all enabled pins
-  PCMSK |= (1 << PCINT3) | (1 << PCINT4);  // Enable wakeup interrupt
+  PCMSK |= (1 << PCINT3) | (1 << PCINT4);  // Enable wakeup interrupts
   //MCUCR |= (1 << ISC01);  // Change mode to falling edge detection
 }
 
 void disable_pin_interrupts() {
   GIMSK &= ~(1 << PCIE); // Disable extrnal interrupt on all enabled pins
-  PCMSK &= ~(1 << PCINT3) & ~(1 << PCINT4);  // Disable wakeup interrupt
+  PCMSK &= ~(1 << PCINT3) & ~(1 << PCINT4);  // Disable wakeup interrupts
 }
 
 void sleep()
 { 
-  digitalWrite(DEBUG_LED, LOW);
   enable_pin_iterrupts();
 
-  MCUCR |= (1 << SM1);      // enabling sleep mode and powerdown sleep mode
-  MCUCR |= (1 << SE);     //Enabling sleep enable bit
-  __asm__ __volatile__ ( "sleep" "\n\t" :: ); //Sleep instruction to put controller to sleep
-  //controller stops executing instruction after entering sleep mode  
+  MCUCR |= (1 << SM1);      // Enabling sleep mode and powerdown sleep mode
+  MCUCR |= (1 << SE);       // Enabling sleep enable bit
+
+  __asm__ __volatile__ ( "sleep" "\n\t" :: );  // Sleep instruction to put controller to sleep
 }
 
-void disable_sleep() {
-  digitalWrite(DEBUG_LED, HIGH);
+void wake_up() {
   disable_pin_interrupts();
 
-  MCUCR &= ~(1 << SM1);      // disabling sleep mode and powerdown sleep mode
-  MCUCR &= ~(1 << SE);
+  MCUCR &= ~(1 << SM1);      // Disabling sleep mode and powerdown sleep mode
+  MCUCR &= ~(1 << SE);       // Disabling sleep enable bit
 
-  last_button_press_time = clock;
+  // Reset the clock to prevent an eventual overflow (that would take WEEKS of being awake but still)
+  // We can get away with this because we only ever care about time relative to the last wake up
+  clock = 0;
+
+  // Set flags and timestamps
   still_waking_up = true;
+  last_button_press_time = clock;
+  last_wakeup_time = clock;
 }
+
+/*
+ISR(BADISR_vect)
+{
+  // Do nothing, overwritting default reset behaviors
+}
+*/
