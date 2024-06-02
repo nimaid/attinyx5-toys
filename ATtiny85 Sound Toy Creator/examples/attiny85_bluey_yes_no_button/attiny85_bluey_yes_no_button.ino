@@ -87,11 +87,11 @@
 uint8_t trigger_pins[] = {3, 4};
 
 // Hacky way to measure time, used for the sleep mode timeout
-// millis() doen't work if I use Timer0 myself, so I have to roll my own solutuion
-// Honestly, I don't want to do the math to get accurate time
-// I just need to tweak these values until I get desirable results
-#define ISR_SKIP_CLOCK 1<<4 // How many ISR cycles before the counter is incremented
-uint32_t clock = 0;  // This is effectively the "time" in "ISR_CLOCK_SKIPs", not milliseconds
+// millis() doen't work if I use Timer0 myself, so I had to roll my own solutuion
+// I'll be honest, I can't be bothered to do the math to get accurate time
+// This value gives something very *close* to milliseconds, but the clock runs a little slow
+#define ISR_SKIP_CLOCK 2<<4 // How many ISR cycles before the counter is incremented
+uint32_t clock = 0;  // This is effectively the "time" in "ISR_SKIP_CLOCKs", not milliseconds
 
 #define SLEEP_TIMEOUT 5000 // Approximately 5 seconds
 
@@ -130,6 +130,7 @@ bool pin_state[NUM_SAMPLES] = {HIGH};
 uint32_t isr_run_sample = 0;
 uint32_t isr_run_clock = 0;
 uint32_t last_button_press_time = 0;
+bool still_waking_up = false;
 uint8_t i;
 
 
@@ -166,8 +167,6 @@ void setup() {
   digitalWrite(DEBUG_LED, HIGH);
 }
 
-//uint64_t count_since_last_press = 0;
-
 void loop() {
   if(RingCount < 32) {  // If there is space in ringbuffer
     update_ring_buffer();
@@ -180,6 +179,14 @@ void loop() {
         // If on a falling edge, trigger the sample
         if (!pin_state[i]) {
           last_button_press_time = clock;
+
+          // Need to "queue" sound to play after 200ms (ish) if we just woke up so the ADC can get going
+          // We need to handle queueing multiple samples during the "wakeup" period, and play them when the time elapses
+          // If the time has already elapsed, we just play the sound instantly and ignore the queue stuff
+          // On disable_sleep, I set still_waking_up, I can use that flag along with a timestamp to do 3 states
+          // - If still_waking_up and in the time window, set the sample bit in a queue array
+          // - If still_waking_up and out of the time window, play queue, clear queue, and reset still_waking_up
+          // - Else (not still_waking_up), just play instantly
           play_sample(i);
         }
       }
@@ -291,4 +298,5 @@ void disable_sleep() {
   MCUCR &= ~(1 << SE);
 
   last_button_press_time = clock;
+  still_waking_up = true;
 }
