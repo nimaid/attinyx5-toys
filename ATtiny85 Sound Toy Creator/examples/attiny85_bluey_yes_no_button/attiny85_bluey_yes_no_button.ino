@@ -47,7 +47,7 @@
  * Make new samples: http://synthworks.eu/attiny85-drum-creator/
  * Export your audio as raw mono unsigned 8-bit, around 7000 Hz.
  * Use the highest sample rate possible while still fitting it all in memory.
- * If you use a different sample rate, tweak the PITCH and ISR_SKIP values.
+ * If you use a different sample rate, tweak the PITCH and ISR_SKIP_SAMPLES values.
  *
  * ~~~~~~ Technical Notes ~~~~~~
  * http://synthworks.eu/attiny85-drum-creator/
@@ -70,7 +70,7 @@
 #define PITCH 850
 // If you need the pitch even lower, this is a coarse adjustment
 // Higher is slower/lower pitched
-#define ISR_SKIP 3
+#define ISR_SKIP_SAMPLES 3
 
 
 
@@ -85,6 +85,15 @@
 
 // Which pins will trigger each sample, tied to hard-coded ISRs
 uint8_t trigger_pins[] = {3, 4};
+
+// Hacky way to measure time, used for the sleep mode timeout
+// millis() doen't work if I use Timer0 myself, so I have to roll my own solutuion
+// Honestly, I don't want to do the math to get accurate time
+// I just need to tweak these values until I get desirable results
+#define ISR_SKIP_CLOCK 1<<4 // How many ISR cycles before the counter is incremented
+uint32_t clock = 0;  // This is effectively the "time" in "ISR_CLOCK_SKIPs", not milliseconds
+
+#define SLEEP_TIMEOUT 5000 // Approximately 5 seconds
 
 #ifndef cbi
 #define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
@@ -118,7 +127,9 @@ uint16_t samplecnt[NUM_SAMPLES];
 uint16_t samplepnt[NUM_SAMPLES];
 
 bool pin_state[NUM_SAMPLES] = {HIGH};
-uint8_t isr_run = 0;
+uint32_t isr_run_sample = 0;
+uint32_t isr_run_clock = 0;
+uint32_t last_button_press_time = 0;
 uint8_t i;
 
 
@@ -168,34 +179,25 @@ void loop() {
         pin_state[i] = !pin_state[i]; // Toggle state
         // If on a falling edge, trigger the sample
         if (!pin_state[i]) {
-          //count_since_last_press = 0;
+          last_button_press_time = clock;
           play_sample(i);
         }
       }
     }
   }
 
-  // I just have to detect when the samples are no longer playing somehow and sleep then
-  // Maybe I should just add a simple timeout from the last button press. (Admit Defeat)
-  // Actually, it clicks anway when sleeping, so yeah, a delay is good
-  // I still want the delay to begin AFTER the audio buffer empties
-  // Oh god, I don't have time funcs because the timer is in use
-  /*
-  if(count_since_last_press > (1 << 100000000000000000000000000000000000000000000000000000000)) {
-    count_since_last_press = 0;
+  // Sleep if enough time has passed
+  if(clock - last_button_press_time > SLEEP_TIMEOUT) {
     sleep();
-  } else {
-    count_since_last_press++;
   }
-  */
 }
 
 
 
 ISR(TIMER0_COMPA_vect) {
   //-------------------  Ringbuffer handler -------------------------
-    if(isr_run == ISR_SKIP) {
-      isr_run = 0;
+    if(isr_run_sample == ISR_SKIP_SAMPLES) {
+      isr_run_sample = 0;
 
       if(RingCount) {                            // If entry in FIFO
         OCR1A = Ringbuffer[(RingRead++)];         // Output 8-bit DAC
@@ -203,7 +205,18 @@ ISR(TIMER0_COMPA_vect) {
       }
     }
     else {
-      isr_run++;
+      isr_run_sample++;
+    }
+  //-----------------------------------------------------------------
+
+  //---------------------  Clock handler ----------------------------
+    if(isr_run_clock == ISR_SKIP_CLOCK) {
+      isr_run_clock = 0;
+
+      clock++;
+    }
+    else {
+      isr_run_clock++;
     }
   //-----------------------------------------------------------------
 }
@@ -274,6 +287,8 @@ void disable_sleep() {
   digitalWrite(DEBUG_LED, HIGH);
   disable_pin_interrupts();
 
-  MCUCR &= ~(1 << SM1);      // enabling sleep mode and powerdown sleep mode
+  MCUCR &= ~(1 << SM1);      // disabling sleep mode and powerdown sleep mode
   MCUCR &= ~(1 << SE);
+
+  last_button_press_time = clock;
 }
