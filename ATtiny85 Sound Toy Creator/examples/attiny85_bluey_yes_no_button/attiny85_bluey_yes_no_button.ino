@@ -12,16 +12,16 @@
  * 
  * 
  * 
- * Fuse Settings:
+ * Board Settings:
  * • Internal 8 MHz
- * • Disable millis() and micros() to save space
+ * • Disable millis()/micros() to save space
  * 
  * Schematic:
  *      ┌───U───┐
  *    ──┤ ○     ├── Vcc
- * S0 ─3┤       ├2─  10KΩ
+ * S0 ─3┤       ├2─ !AMP_SHUTDOWN
  * S1 ─4┤       ├1────~~──┬─ Out
- *   ┌──┤       ├0─       ╪ 0.1uF
+ *   ┌──┤       ├0─  10KΩ ╪ 0.1uF
  *   ⏚  └───────┘         ⏚
  * 
  * Schematic Key:
@@ -29,6 +29,9 @@
  *   ◦ A digital input that triggers the respective sample on the falling edge.
  *   ◦ Uses internal pullup resistors, so you only have to connect
  *     a button between the pin and ground.
+ * • !AMP_SHUTDOWN:
+ *   ◦ A digital output that is designed to be connected to the shutdown pin on the PAM8302/PAM8403.
+ *   ◦ Is LOW when the controller is asleep, and HIGH when it's awake
  * • Out:
  *   ◦ A high-speed PWM "analog" audio output.
  *   ◦ True analog output is realized via the RC lowpass filter.
@@ -80,21 +83,25 @@
 #include <avr/io.h>
 #include <avr/pgmspace.h>
 
+//#include "blank_samples.h"
 #include "samples.h"  // The sample audio data
 #define NUM_SAMPLES 2
 
-// Which pins will trigger each sample, tied to hard-coded ISRs
+// Which pins will trigger each sample, tied to hard-coded register settings
 uint8_t trigger_pins[] = {3, 4};
 
-// Hacky way to measure time, used for the sleep mode timeout and  the wakeup period
+#define AMP_SHUTDOWN_PIN 2
+
+// Hacky way to measure time, used for the sleep mode timeout and the wakeup period
 // millis() doesn't work if I use Timer0 myself, so I had to roll my own solutuion
 // I'll be honest, I can't be bothered to do the math to get accurate time
 // This value gives something very *close* to milliseconds, but the clock runs a little slow
-#define ISR_SKIP_CLOCK 2<<4 // How many ISR cycles before the counter is incremented
+#define ISR_SKIP_CLOCK 2<<4 // How many ISR cycles before the clock is incremented
 volatile uint32_t clock = 0;  // This is effectively the "time" in "ISR_SKIP_CLOCKs", not milliseconds
 
-#define SLEEP_TIMEOUT 5000 // How long to wait before sleeping
-#define WAKEUP_WINDOW 100 // How long to wait before playing samples after waking up
+//#define SLEEP_TIMEOUT 5000
+#define SLEEP_TIMEOUT 300000 // How long to wait before sleeping (5 minutes)
+#define WAKEUP_WINDOW 400 // How long to wait before playing samples after waking up (PWM and amp startup time)
 
 bool sample_queue[NUM_SAMPLES] = {false};
 
@@ -167,6 +174,9 @@ void setup() {
     pinMode(trigger_pins[i], INPUT_PULLUP);
   }
 
+  pinMode(AMP_SHUTDOWN_PIN, OUTPUT);
+  digitalWrite(AMP_SHUTDOWN_PIN, HIGH);
+
   disable_pin_interrupts();
 }
 
@@ -176,7 +186,7 @@ void loop() {
     update_ring_buffer();
   }
 
-  // Detect the trigger inputs
+  // Detect the edge-triggered inputs
   for(i=0; i<NUM_SAMPLES; i++) {
     // Detect this pin state change
     if (digitalRead(trigger_pins[i]) != pin_state[i]) {  
@@ -295,6 +305,8 @@ void sleep()
 { 
   enable_pin_iterrupts();
 
+  digitalWrite(AMP_SHUTDOWN_PIN, LOW);
+
   MCUCR |= (1 << SM1);      // Enabling sleep mode and powerdown sleep mode
   MCUCR |= (1 << SE);       // Enabling sleep enable bit
 
@@ -303,6 +315,8 @@ void sleep()
 
 void wake_up() {
   disable_pin_interrupts();
+
+  digitalWrite(AMP_SHUTDOWN_PIN, HIGH);
 
   MCUCR &= ~(1 << SM1);      // Disabling sleep mode and powerdown sleep mode
   MCUCR &= ~(1 << SE);       // Disabling sleep enable bit
