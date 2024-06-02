@@ -1,4 +1,4 @@
-/* ATtiny85 Sound Toy
+/* ATtiny85 Sound Toy w/ Advanced Power Management
  * Author: Ella Jameson
  * 
  * This program is free software: you can redistribute it and/or modify 
@@ -10,13 +10,13 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the 
  * GNU General Public License for more details. 
  * 
+ * ~~~~~~ Board Settings ~~~~~~
+ * Internal 8 MHz
+ * Disable millis()/micros() to save space
+ * Disable B.O.D. to save power
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  * 
- * 
- * Board Settings:
- * • Internal 8 MHz
- * • Disable millis()/micros() to save space
- * 
- * Schematic:
+ * ~~~~~~ Schematic ~~~~~~
  *      ┌───U───┐
  *    ──┤ ○     ├── Vcc
  * S0 ─3┤       ├2─ !AMP_SHUTDOWN
@@ -24,7 +24,7 @@
  *   ┌──┤       ├0─  10KΩ ╪ 0.1uF
  *   ⏚  └───────┘         ⏚
  * 
- * Schematic Key:
+ * Key:
  * • S0 / S1:
  *   ◦ A digital input that triggers the respective sample on the falling edge.
  *   ◦ Uses internal pullup resistors, so you only have to connect
@@ -43,23 +43,32 @@
  *        ⏚
  * The above resistor may need to be made smaller to make it quieter
  * It can also be made larger or even ommitted to make it louder
- *
- * ~~~~~~ NOTE: ~~~~~~
- * The following section will eventually be replaced with a special Python program.
- * ~~~~~~~~~~~~~~~~~~~
+ * If connecting to a PAM8302 or PAM8403, you can ommit this and just use the suggested circuit from the datasheet.
+ * ~~~~~~~~~~~~~~~~~~~~~~~
+ * 
+ * ~~~~~~ Current Draw ~~~~~~
+ * Measurements do not include a speaker load, but do include a PAM8403.
+ * Awake: 10.9 mA
+ * Asleep: 0.3 uA
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * 
+ * ~~~~~~ Making New Sample Kits ~~~~~~
+ * NOTE: This section will eventually be replaced with a special Python program.
  * Make new samples: http://synthworks.eu/attiny85-drum-creator/
  * Export your audio as raw mono unsigned 8-bit, around 7000 Hz.
  * Use the highest sample rate possible while still fitting it all in memory.
  * If you use a different sample rate, tweak the PITCH and ISR_SKIP_SAMPLES values.
- *
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * 
  * ~~~~~~ Technical Notes ~~~~~~
+ * https://ww1.microchip.com/downloads/en/devicedoc/atmel-2586-avr-8-bit-microcontroller-attiny25-attiny45-attiny85_datasheet.pdf
  * http://synthworks.eu/attiny85-drum-creator/
  * https://www.gadgetronicx.com/attiny85-sleep-modes-tutorial/
  * https://thewanderingengineer.com/2014/08/11/arduino-pin-change-interrupts/
  * https://thewanderingengineer.com/2014/08/09/avr-arduino-default-isr-resetting-pin-change-interrupt-problem/
+ * http://www.gammon.com.au/power
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
-
-
 
 // Sample Kit: Bluey Yes/No Button
 // Sample mapping:
@@ -79,28 +88,40 @@
 
 
 
+//#define FAST_SLEEP  // Used to make the chip sleep after only 5 seconds of inactivity
+//#define USE_BLANK_SAMPLES // Used to compile without samples to get a baseline sketch size
+
+
+
 #include <avr/interrupt.h>
 #include <avr/io.h>
 #include <avr/pgmspace.h>
 
-//#include "blank_samples.h"
+#ifdef USE_BLANK_SAMPLES
+#include "blank_samples.h"  // Empty samples that take up no flash
+#else
 #include "samples.h"  // The sample audio data
+#endif
 #define NUM_SAMPLES 2
 
 // Which pins will trigger each sample, tied to hard-coded register settings
 uint8_t trigger_pins[] = {3, 4};
 
+// Which pin is used for shutting down the amp (could also be an "awake" indicator LED)
 #define AMP_SHUTDOWN_PIN 2
 
 // Hacky way to measure time, used for the sleep mode timeout and the wakeup period
-// millis() doesn't work if I use Timer0 myself, so I had to roll my own solutuion
+// millis() doesn't work if I use Timer0 myself, so I had to roll my own solution
 // I'll be honest, I can't be bothered to do the math to get accurate time
 // This value gives something very *close* to milliseconds, but the clock runs a little slow
 #define ISR_SKIP_CLOCK 2<<4 // How many ISR cycles before the clock is incremented
 volatile uint32_t clock = 0;  // This is effectively the "time" in "ISR_SKIP_CLOCKs", not milliseconds
 
-//#define SLEEP_TIMEOUT 5000
-#define SLEEP_TIMEOUT 300000 // How long to wait before sleeping (5 minutes)
+#ifdef FAST_SLEEP
+#define SLEEP_TIMEOUT 5000 // How long to wait before sleeping in debug mode (5 seconds)
+#else
+#define SLEEP_TIMEOUT 300000 // How long to wait before sleeping in production mode (5 minutes)
+#endif
 #define WAKEUP_WINDOW 400 // How long to wait before playing samples after waking up (PWM and amp startup time)
 
 bool sample_queue[NUM_SAMPLES] = {false};
@@ -176,6 +197,8 @@ void setup() {
 
   pinMode(AMP_SHUTDOWN_PIN, OUTPUT);
   digitalWrite(AMP_SHUTDOWN_PIN, HIGH);
+
+  disable_unused_peripherals();
 
   disable_pin_interrupts();
 }
@@ -303,9 +326,9 @@ void disable_pin_interrupts() {
 
 void sleep()
 { 
-  enable_pin_iterrupts();
-
   digitalWrite(AMP_SHUTDOWN_PIN, LOW);
+
+  enable_pin_iterrupts();
 
   MCUCR |= (1 << SM1);      // Enabling sleep mode and powerdown sleep mode
   MCUCR |= (1 << SE);       // Enabling sleep enable bit
@@ -329,6 +352,16 @@ void wake_up() {
   still_waking_up = true;
   last_button_press_time = clock;
   last_wakeup_time = clock;
+}
+
+// Turn off unused peripherals to save lots of power, especially when sleeping
+void disable_unused_peripherals() {
+  // Disable and shut down the ADC (unused)
+  ADCSRA = 0;  // This single line improves the sleeping battery life by about 1000x
+  PRR |= (1 << PRADC);
+
+  // Disable the Universal Serial Interface (unused)
+  PRR |= (1 << PRUSI);
 }
 
 /*
