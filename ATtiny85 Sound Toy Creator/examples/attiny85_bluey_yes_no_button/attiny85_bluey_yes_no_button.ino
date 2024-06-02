@@ -118,11 +118,11 @@ uint8_t trigger_pins[] = {3, 4};
 volatile uint32_t clock = 0;  // This is effectively the "time" in "ISR_SKIP_CLOCKs", not milliseconds
 
 #ifdef FAST_SLEEP
-#define SLEEP_TIMEOUT 5000 // How long to wait before sleeping in debug mode (5 seconds)
+#define SLEEP_TIMEOUT 5000  // How long to wait before sleeping in debug mode (5 seconds)
 #else
-#define SLEEP_TIMEOUT 300000 // How long to wait before sleeping in production mode (5 minutes)
+#define SLEEP_TIMEOUT 60000  // How long to wait before sleeping in production mode (1 minute)
 #endif
-#define WAKEUP_WINDOW 400 // How long to wait before playing samples after waking up (PWM and amp startup time)
+#define WAKEUP_WINDOW 400  // How long to wait before playing samples after waking up (PWM and amp startup time)
 
 bool sample_queue[NUM_SAMPLES] = {false};
 
@@ -213,7 +213,7 @@ void loop() {
   for(i=0; i<NUM_SAMPLES; i++) {
     // Detect this pin state change
     if (digitalRead(trigger_pins[i]) != pin_state[i]) {  
-      pin_state[i] = !pin_state[i]; // Toggle state
+      pin_state[i] = !pin_state[i];  // Toggle state
       // If on a falling edge, trigger the sample
       if (!pin_state[i]) {
         last_button_press_time = clock;
@@ -255,7 +255,7 @@ ISR(TIMER0_COMPA_vect) {
       isr_run_sample = 0;
 
       if(RingCount) {                            // If entry in FIFO
-        OCR1A = Ringbuffer[(RingRead++)];         // Output 8-bit DAC
+        OCR1A = Ringbuffer[(RingRead++)];        // Output 8-bit DAC
         RingCount--;
       }
     }
@@ -320,7 +320,7 @@ void enable_pin_iterrupts() {
 }
 
 void disable_pin_interrupts() {
-  GIMSK &= ~(1 << PCIE); // Disable extrnal interrupt on all enabled pins
+  GIMSK &= ~(1 << PCIE);  // Disable extrnal interrupt on all enabled pins
   PCMSK &= ~(1 << PCINT3) & ~(1 << PCINT4);  // Disable wakeup interrupts
 }
 
