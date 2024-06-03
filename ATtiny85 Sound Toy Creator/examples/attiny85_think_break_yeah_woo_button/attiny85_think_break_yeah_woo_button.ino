@@ -53,7 +53,7 @@
  *        ⏚
  * The above resistor may need to be made smaller to make it quieter
  * It can also be made larger or even ommitted to make it louder
- * If connecting to a PAM8302 or PAM8403, you can ommit this and just use the suggested circuit from the datasheet.
+ * If connecting to a PAM8302 or PAM8403, you can ommit the cap and just use the suggested circuit from the datasheet.
  * ~~~~~~~~~~~~~~~~~~~~~~~
  * 
  * ~~~~~~ Current Draw ~~~~~~
@@ -80,6 +80,8 @@
  * https://thewanderingengineer.com/2014/08/11/arduino-pin-change-interrupts/
  * https://thewanderingengineer.com/2014/08/09/avr-arduino-default-isr-resetting-pin-change-interrupt-problem/
  * http://www.gammon.com.au/power
+ * https://www.mouser.com/datasheet/2/115/PAM8403-247318.pdf
+ * https://www.diodes.com/assets/Datasheets/PAM8302A.pdf
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
