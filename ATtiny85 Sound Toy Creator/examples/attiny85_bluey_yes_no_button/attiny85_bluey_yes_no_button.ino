@@ -67,7 +67,7 @@
  * NOTE: This section will eventually be replaced with a special Python program.
  * Make new samples: http://synthworks.eu/attiny85-drum-creator/
  * Export your audio as raw mono unsigned 8-bit, around 7000 Hz.
- * Sample Rate = (Free Bytes - 2) * Total Audio Length (s)
+ * Sample Rate = (Free Bytes - 2) * Total Audio Length (seconds)
  * Use the highest sample rate possible while still fitting it all in memory.
  * If you use a different sample rate, tweak the PITCH and ISR_SKIP_SAMPLES values.
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -132,7 +132,7 @@ volatile uint32_t clock = 0;  // This is effectively the "time" in "ISR_SKIP_CLO
 #ifdef FAST_SLEEP
 #define SLEEP_TIMEOUT 5000  // How long to wait before sleeping in debug mode (5 seconds)
 #else
-#define SLEEP_TIMEOUT 60000  // How long to wait before sleeping in production mode (1 minute)
+#define SLEEP_TIMEOUT 150000  // How long to wait before sleeping in production mode (2.5 minutes)
 #endif
 #define WAKEUP_WINDOW 400  // How long to wait before playing samples after waking up (PWM and amp startup time)
 
