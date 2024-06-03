@@ -31,7 +31,7 @@
  *     a button between the pin and ground.
  * • !AMP_SHUTDOWN:
  *   ◦ A digital output that is designed to be connected to the shutdown pin on the PAM8302/PAM8403.
- *   ◦ Is LOW when the controller is asleep, and HIGH when it's awake
+ *   ◦ Is LOW when the controller is asleep, and HIGH IMPEDANCE (disconnected) when it's awake
  * • Out:
  *   ◦ A high-speed PWM "analog" audio output.
  *   ◦ True analog output is realized via the RC lowpass filter.
@@ -210,8 +210,7 @@ void setup() {
     pinMode(trigger_pins[i], INPUT_PULLUP);
   }
 
-  pinMode(AMP_SHUTDOWN_PIN, OUTPUT);
-  digitalWrite(AMP_SHUTDOWN_PIN, HIGH);
+  pinMode(AMP_SHUTDOWN_PIN, INPUT);  // High impedance (disconnected)
 
   disable_unused_peripherals();
 
@@ -341,6 +340,7 @@ void disable_pin_interrupts() {
 
 void sleep()
 { 
+  pinMode(AMP_SHUTDOWN_PIN, OUTPUT);
   digitalWrite(AMP_SHUTDOWN_PIN, LOW);
 
   enable_pin_iterrupts();
@@ -354,7 +354,7 @@ void sleep()
 void wake_up() {
   disable_pin_interrupts();
 
-  digitalWrite(AMP_SHUTDOWN_PIN, HIGH);
+  pinMode(AMP_SHUTDOWN_PIN, INPUT);  // High impedance (disconnected)
 
   MCUCR &= ~(1 << SM1);      // Disabling sleep mode and powerdown sleep mode
   MCUCR &= ~(1 << SE);       // Disabling sleep enable bit
