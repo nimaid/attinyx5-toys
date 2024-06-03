@@ -36,10 +36,21 @@
  *   ◦ A high-speed PWM "analog" audio output.
  *   ◦ True analog output is realized via the RC lowpass filter.
  *
+ * Good practice is to always include a 0.1uF ceramic capacitor between VCC and GND (called a decoupling capacitor).
+ * Make sure this is connected DIRECTLY to the ATtiny85 pins, and make the wires/traces as short as possible.
+ *
+ * While you could connect the buttons directly between the pins and ground, you will get lots of
+ * false presses if you do that due to button bouncing. To save flash memory, no software debouncing
+ * is used. Instead, you can fix the problem with more RC filters, like so:
+ *   _T_  10kΩ
+ * ┌─○ ○───~~─┬─ Pin
+ * ⏚          ╪ 0.1uF
+ *            ⏚
+ *
  * For line level output, add this to the above schematic:
  *         10uF
  * Out ───┬─┤(── Line Out
- *  2.7KΩ ⌇ 
+ *  2.7KΩ ⌇
  *        ⏚
  * The above resistor may need to be made smaller to make it quieter
  * It can also be made larger or even ommitted to make it louder
