@@ -81,7 +81,7 @@
 
 // Tweak this between 0 and 1023 to get the correct pitch for your samples
 // Higher is faster/higher pitched
-#define PITCH 850
+#define PITCH 840
 // If you need the pitch even lower, this is a coarse adjustment
 // Higher is slower/lower pitched
 #define ISR_SKIP_SAMPLES 3
