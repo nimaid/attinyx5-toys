@@ -83,7 +83,7 @@
  */
 
 // Sample Kit: Bluey Yes/No Button
-// Sample mapping:
+// Sample Mapping:
 // ┌───┬────────┐
 // │ # │ Sample │
 // ├───┼────────┤
