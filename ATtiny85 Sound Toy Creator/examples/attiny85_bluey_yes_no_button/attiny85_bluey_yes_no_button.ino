@@ -67,6 +67,7 @@
  * NOTE: This section will eventually be replaced with a special Python program.
  * Make new samples: http://synthworks.eu/attiny85-drum-creator/
  * Export your audio as raw mono unsigned 8-bit, around 7000 Hz.
+ * Sample Rate = (Free Bytes - 2) * Total Audio Length (s)
  * Use the highest sample rate possible while still fitting it all in memory.
  * If you use a different sample rate, tweak the PITCH and ISR_SKIP_SAMPLES values.
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
