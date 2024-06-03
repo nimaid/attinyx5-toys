@@ -10,11 +10,17 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the 
  * GNU General Public License for more details. 
  * 
- * ~~~~~~ Board Settings ~~~~~~
+ * ~~~~~~ Board Settings (Arduino) ~~~~~~
  * Internal 8 MHz
  * Disable millis()/micros() to save space
  * Disable B.O.D. to save power
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ * ~~~~~~ Fuses (avrdude) ~~~~~~
+ * efuse: 0xFF
+ * hfuse: 0b11010111
+ * lfuse: 0xE2
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  * 
  * ~~~~~~ Schematic ~~~~~~
  *      ┌───U───┐
