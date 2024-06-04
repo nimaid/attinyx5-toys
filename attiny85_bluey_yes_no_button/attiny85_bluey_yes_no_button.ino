@@ -71,7 +71,6 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~
  * 
  * ~~~~~~ Making New Sample Kits ~~~~~~
- * NOTE: This section will eventually be replaced with a special Python program.
  * Make new samples: http://synthworks.eu/attiny85-drum-creator/
  * Export your audio as raw mono unsigned 8-bit, around 7000 Hz.
  * Sample Rate = (Free Bytes - 2) / Total Audio Length (seconds)
@@ -93,14 +92,14 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-// Sample Kit: Think Break Yeah! Woo!
+// Sample Kit: Bluey Yes/No Button
 // Sample Mapping:
-// ┌───┬─────────┐
-// │ # │  Sample │
-// ├───┼─────────┤
-// │ 0 │   Yeah  │
-// │ 1 │   Woo   │
-// └───┴─────────┘
+// ┌───┬────────┐
+// │ # │ Sample │
+// ├───┼────────┤
+// │ 0 │   Yes  │
+// │ 1 │   No   │
+// └───┴────────┘
 
 // Tweak this between 0 and 1023 to get the correct pitch for your samples
 // Higher is faster/higher pitched
