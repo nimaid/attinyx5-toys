@@ -18,7 +18,7 @@
  *
  * ~~~~~~ Fuses (avrdude) ~~~~~~
  * efuse: 0xFF
- * hfuse: 0b11010111
+ * hfuse: 0xD7
  * lfuse: 0xE2
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  * 
@@ -43,7 +43,7 @@
  *   ◦ True analog output is realized via the RC lowpass filter.
  *
  * Good practice is to always include a 0.1uF ceramic capacitor between VCC and GND (called a decoupling capacitor).
- * Make sure this is connected DIRECTLY to the ATtiny85 pins, and make the wires/traces as short as possible.
+ * Make sure this is connected DIRECTLY to the ATtiny85 power pin, and make the wires/traces as short as possible.
  *
  * While you could connect the buttons directly between the pins and ground, you will get false presses due to button bouncing.
  * To save flash memory, no software debouncing is used. Instead, you can fix the problem with more RC filters, like so:
@@ -75,7 +75,7 @@
  * Sample Rate = (Free Bytes - 2) * Total Audio Length (seconds)
  * At 7000 Hz with 6698 free bytes, you get 956.6 ms of audio total
  * Use the highest sample rate possible while still fitting it all in memory.
- * It's suggested to agressively trim and fade the clips to make them shorter, allowing higher sample rates.
+ * It's suggested to aggressively trim and fade the clips to make them shorter, allowing higher sample rates.
  * If you use a different sample rate, tweak the PITCH and ISR_SKIP_SAMPLES values.
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  * 
@@ -125,7 +125,7 @@
 #endif
 #define NUM_SAMPLES 2
 
-// Which pins will trigger each sample, tied to hard-coded register settings
+// Which pins will trigger each sample, tied to hard-coded register settings for wakeup interrupts
 uint8_t trigger_pins[] = {3, 4};
 
 // Which pin is used for shutting down the amp (could also be an "awake" indicator LED)
@@ -135,7 +135,7 @@ uint8_t trigger_pins[] = {3, 4};
 // millis() doesn't work if I use Timer0 myself, so I had to roll my own solution
 // I'll be honest, I can't be bothered to do the math to get accurate time
 // This value gives something very *close* to milliseconds, but the clock runs a little slow
-#define ISR_SKIP_CLOCK 2<<4 // How many ISR cycles before the clock is incremented
+#define ISR_SKIP_CLOCK 1<<5 // How many ISR cycles before the clock is incremented
 volatile uint32_t clock = 0;  // This is effectively the "time" in "ISR_SKIP_CLOCKs", not milliseconds
 
 #ifdef FAST_SLEEP
