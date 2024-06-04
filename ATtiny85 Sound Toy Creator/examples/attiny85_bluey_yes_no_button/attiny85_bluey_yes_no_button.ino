@@ -72,7 +72,7 @@
  * NOTE: This section will eventually be replaced with a special Python program.
  * Make new samples: http://synthworks.eu/attiny85-drum-creator/
  * Export your audio as raw mono unsigned 8-bit, around 7000 Hz.
- * Sample Rate = (Free Bytes - 2) * Total Audio Length (seconds)
+ * Sample Rate = (Free Bytes - 2) / Total Audio Length (seconds)
  * At 7000 Hz with 6698 free bytes, you get 956.6 ms of audio total
  * Use the highest sample rate possible while still fitting it all in memory.
  * It's suggested to aggressively trim and fade the clips to make them shorter, allowing higher sample rates.
