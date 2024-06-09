@@ -10,7 +10,7 @@
 #define UPDATE_DELAY 2500
 //#define SHIFT_DELAY 1000
 
-uint8_t invader1[] = {
+const uint8_t invader1[] = {
 	0b01110000,
 	0b00011000,
 	0b11111101,
@@ -23,7 +23,7 @@ uint8_t invader1[] = {
 	0b00011000,
 	0b01110000
 };
-uint8_t invader2[] = {
+const uint8_t invader2[] = {
 	0b00001110,
 	0b00011000,
 	0b10111101,
