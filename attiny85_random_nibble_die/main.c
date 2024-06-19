@@ -6,7 +6,11 @@
 #define BUTTON_BIT PB4
 const uint8_t led_bits[] = {PB3, PB0, PB1, PB2};
 
-#define DELAY_TIME 1000
+#define LOOP_DELAY_TIME 1
+
+uint8_t button_reads = 0;
+#define PRESS_CONDITION (1<<7)     // Falling edge
+#define RELEASE_CONDITION ~(1<<7)  // Rising edge
 
 void display_nibble(uint8_t nibble_in) {
 	for(int i = 0; i < 4; i++) {
@@ -31,29 +35,30 @@ int main(void) {
 	
 	// Declare variables
 	uint8_t count = 0;
-	bool button_pressed = false;
 	
 	// Display initial count
 	display_nibble(count);
 	
 	// Main Loop
 	while(1) {
-		// If the button is not pressed (high)
-		if(PINB & (1<<BUTTON_BIT)) {
-			button_pressed = false;
-		}
-		// If the button is pressed (low)
-		else {
-			// On press (falling edge)
-			if(!button_pressed) {
-				count++;
-				count %= 0b10000;
-				
-				display_nibble(count);
-			}
+		// On press
+		if(button_reads == PRESS_CONDITION) {
+			count++;
+			count %= 0b10000;
 			
-			button_pressed = true;
+			display_nibble(count);
 		}
+		
+		// Update button reads
+		button_reads <<= 1;
+		if(PINB & (1<<BUTTON_BIT)) {
+			button_reads |= 1;
+		}
+		
+		// Delay
+		#ifdef LOOP_DELAY_TIME
+		_delay_ms(LOOP_DELAY_TIME);
+		#endif
 	}
 	
 	return 0;
