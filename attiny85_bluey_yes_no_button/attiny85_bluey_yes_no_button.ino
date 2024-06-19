@@ -45,13 +45,6 @@
  * Good practice is to always include a 0.1uF ceramic capacitor between VCC and GND (called a decoupling capacitor).
  * Make sure this is connected DIRECTLY to the ATtiny85 power pin, and make the wires/traces as short as possible.
  *
- * While you could connect the buttons directly between the pins and ground, you will get false presses due to button bouncing.
- * To save flash memory, no software debouncing is used. Instead, you can fix the problem with more RC filters, like so:
- *   _T_  10kΩ
- * ┌─○ ○───~~─┬─ Pin
- * ⏚          ╪ 0.1uF
- *            ⏚
- *
  * For line level output, add this to the above schematic:
  *         10uF
  * Out ───┬─┤(── Line Out
@@ -74,7 +67,7 @@
  * Make new samples: http://synthworks.eu/attiny85-drum-creator/
  * Export your audio as raw mono unsigned 8-bit, around 7000 Hz.
  * Sample Rate = (Free Bytes - 2) / Total Audio Length (seconds)
- * At 7000 Hz with 6698 free bytes, you get 956.6 ms of audio total
+ * At 7000 Hz with 6556 free bytes, you get  ms of audio total
  * Use the highest sample rate possible while still fitting it all in memory.
  * It's suggested to aggressively trim and fade the clips to make them shorter, allowing higher sample rates.
  * If you use a different sample rate, tweak the PITCH and ISR_SKIP_SAMPLES values.
@@ -103,7 +96,7 @@
 
 // Tweak this between 0 and 1023 to get the correct pitch for your samples
 // Higher is faster/higher pitched
-#define PITCH 840
+#define PITCH 800
 // If you need the pitch even lower, this is a coarse adjustment
 // Higher is slower/lower pitched
 #define ISR_SKIP_SAMPLES 3
@@ -129,14 +122,21 @@
 // Which pins will trigger each sample, tied to hard-coded register settings for wakeup interrupts
 uint8_t trigger_pins[] = {3, 4};
 
+// Vars for button debouncing
+uint8_t button_reads[NUM_SAMPLES] = {0};
+bool button_just_pressed[NUM_SAMPLES] = {false};
+#define ISR_SKIP_DEBOUNCE 128           // Higher adds more debouncing and delay
+#define PRESS_CONDITION   (0b10000000)  // Falling Edge
+#define RELEASE_CONDITION (0b01111111)  // Rising Edge
+
 // Which pin is used for shutting down the amp (could also be an "awake" indicator LED)
 #define AMP_SHUTDOWN_PIN 2
 
 // Hacky way to measure time, used for the sleep mode timeout and the wakeup period
 // millis() doesn't work if I use Timer0 myself, so I had to roll my own solution
 // I'll be honest, I can't be bothered to do the math to get accurate time
-// This value gives something very *close* to milliseconds, but the clock runs a little slow
-#define ISR_SKIP_CLOCK 1<<5 // How many ISR cycles before the clock is incremented
+// This value gives something very *close* to milliseconds
+#define ISR_SKIP_CLOCK 29 // How many ISR cycles before the clock is incremented
 volatile uint32_t clock = 0;  // This is effectively the "time" in "ISR_SKIP_CLOCKs", not milliseconds
 
 #ifdef FAST_SLEEP
@@ -179,9 +179,9 @@ const uint16_t sizeof_sample[NUM_SAMPLES] =
 uint16_t samplecnt[NUM_SAMPLES];
 uint16_t samplepnt[NUM_SAMPLES];
 
-bool pin_state[NUM_SAMPLES] = {HIGH};
 uint32_t isr_run_sample = 0;
 uint32_t isr_run_clock = 0;
+uint32_t isr_run_debounce = 0;
 
 volatile uint32_t last_button_press_time = 0;
 volatile uint32_t last_wakeup_time = 0;
@@ -232,20 +232,18 @@ void loop() {
 
   // Detect the edge-triggered inputs
   for(i=0; i<NUM_SAMPLES; i++) {
-    // Detect this pin state change
-    if (digitalRead(trigger_pins[i]) != pin_state[i]) {  
-      pin_state[i] = !pin_state[i];  // Toggle state
-      // If on a falling edge, trigger the sample
-      if (!pin_state[i]) {
-        last_button_press_time = clock;
+    // If pressed
+    if (button_just_pressed[i]) {
+      button_just_pressed[i] = false;
 
-        // If still waking up, queue instead of playing
-        if(still_waking_up) {
-          sample_queue[i] = true;
-        }
-        else {
-          play_sample(i);
-        }
+      last_button_press_time = clock;
+
+      // If still waking up, queue instead of playing
+      if(still_waking_up) {
+        sample_queue[i] = true;
+      }
+      else {
+        play_sample(i);
       }
     }
   }
@@ -295,6 +293,26 @@ ISR(TIMER0_COMPA_vect) {
       isr_run_clock++;
     }
   //-----------------------------------------------------------------
+
+  //---------------------  Debounce handler ----------------------------
+    if(isr_run_debounce == ISR_SKIP_DEBOUNCE) {
+      isr_run_debounce = 0;
+
+      for(int i=0; i< NUM_SAMPLES; i++) {
+        button_reads[i] <<= 1;
+        if(digitalRead(trigger_pins[i])) {
+          button_reads[i] |= 1;
+        }
+
+        if(button_reads[i] == PRESS_CONDITION) {
+          button_just_pressed[i] = true;
+        }
+      }
+    }
+    else {
+      isr_run_debounce++;
+    }
+  //-----------------------------------------------------------------
 }
 
 // Wakeup handler
@@ -312,7 +330,7 @@ void append_ring_buffer(uint8_t sample) {
 
 void update_ring_buffer() {
   int16_t total=0;
-  for(int i=0; i<2; i++) {
+  for(int i=0; i<NUM_SAMPLES; i++) {
     if (samplecnt[i]) {
       total+=(pgm_read_byte_near(sample[i] + samplepnt[i]++)-128);
       samplecnt[i]--;
