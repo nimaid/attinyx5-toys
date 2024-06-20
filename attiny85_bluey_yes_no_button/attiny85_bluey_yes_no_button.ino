@@ -57,10 +57,10 @@
  * 
  * ~~~~~~ Current Draw ~~~~~~
  * Measurements do not include a speaker load, but do include a PAM8403.
- * Asleep current may not be accurate, as my Fluke 83V seemed to cause device glitches in uA mode.
- * I suspect it draws much less current when asleep.
- * Awake: 13.5 mA
- * Asleep: 215.3 uA
+ * Measured across a 1Ωshunt with a Fluke 83V in mV mode.
+ * I suspect instruments more sensitive on the low-end would reveal lower sleeping current draws than I read.
+ * Awake: 15.0 mA
+ * Asleep: 0.3 mA
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~
  * 
  * ~~~~~~ Making New Sample Kits ~~~~~~
